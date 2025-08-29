@@ -590,13 +590,20 @@ mod tests {
             strength: 0.8,
             threshold: 0.6,
             color_boost: 1.2,
+            animation_enabled: true,
+            animation_type: config::GlowAnimationType::Pulse,
+            animation_speed: 2.0,
         };
         
-        let uniform = GlowUniform::from(&config);
+        let uniform = GlowUniform::from_config_with_time(&config, 1000);
         assert_eq!(uniform.radius, 3.0);
         assert_eq!(uniform.strength, 0.8);
         assert_eq!(uniform.threshold, 0.6);
         assert_eq!(uniform.color_boost, 1.2);
+        assert_eq!(uniform.time_ms, 1000);
+        assert_eq!(uniform.animation_enabled, 1);
+        assert_eq!(uniform.animation_type, 0); // Pulse = 0
+        assert_eq!(uniform.animation_speed, 2.0);
     }
 
     #[test]
