@@ -21,6 +21,10 @@ struct GlowUniform {
     threshold: f32,
     strength: f32,
     color_boost: f32,
+    time_ms: u32,
+    animation_enabled: u32,  // 0 = disabled, 1 = enabled
+    animation_type: u32,     // 0 = pulse, 1 = shimmer, 2 = pulse+shimmer
+    animation_speed: f32,    // Speed multiplier for animations
 }
 
 @group(0) @binding(0) var<uniform> glow_params: GlowUniform;
@@ -117,6 +121,30 @@ fn fs_blur_v(input: VertexOutput) -> @location(0) vec4<f32> {
 fn fs_composite(input: VertexOutput) -> @location(0) vec4<f32> {
     let glow_color = textureSample(src_texture, src_sampler, input.tex_coord);
     
-    // Apply strength and return for additive blending
-    return vec4<f32>(glow_color.rgb * glow_params.strength, glow_color.a * glow_params.strength);
+    var final_strength = glow_params.strength;
+    
+    // Apply animation if enabled
+    if (glow_params.animation_enabled != 0u) {
+        let time_sec = f32(glow_params.time_ms) * 0.001 * glow_params.animation_speed;
+        
+        // Animation type: 0 = pulse, 1 = shimmer, 2 = pulse+shimmer
+        if (glow_params.animation_type == 0u) {
+            // Pulse only - slow breathing effect (3 second cycle at speed 1.0)
+            let pulse_cycle = sin(time_sec * 2.094395) * 0.5 + 0.5; // 2π/3 ≈ 2.094395
+            final_strength = glow_params.strength * (0.5 + pulse_cycle * 0.5); // Range: 50%-100%
+        } else if (glow_params.animation_type == 1u) {
+            // Shimmer only - faster subtle sparkle
+            let shimmer_cycle = sin(time_sec * 8.377580) * 0.5 + 0.5; // 2π*4/3 ≈ 8.377580
+            final_strength = glow_params.strength * (0.9 + shimmer_cycle * 0.1); // Range: 90%-100%
+        } else if (glow_params.animation_type == 2u) {
+            // Pulse + Shimmer - both effects combined
+            let pulse_cycle = sin(time_sec * 2.094395) * 0.5 + 0.5;
+            let shimmer_cycle = sin(time_sec * 8.377580) * 0.5 + 0.5;
+            let pulse_strength = glow_params.strength * (0.5 + pulse_cycle * 0.5);
+            final_strength = pulse_strength * (0.95 + shimmer_cycle * 0.05);
+        }
+    }
+    
+    // Apply final strength and return for additive blending
+    return vec4<f32>(glow_color.rgb * final_strength, glow_color.a * final_strength);
 }

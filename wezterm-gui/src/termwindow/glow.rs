@@ -17,15 +17,31 @@ pub struct GlowUniform {
     pub threshold: f32,
     pub strength: f32,
     pub color_boost: f32,
+    pub time_ms: u32,
+    pub animation_enabled: u32, // 0 = disabled, 1 = enabled
+    pub animation_type: u32,    // 0 = pulse, 1 = shimmer, 2 = pulse+shimmer
+    pub animation_speed: f32,   // Speed multiplier for animations
 }
 
-impl From<&ExperimentalGlow> for GlowUniform {
-    fn from(config: &ExperimentalGlow) -> Self {
+impl GlowUniform {
+    pub fn from_config_with_time(config: &ExperimentalGlow, time_ms: u32) -> Self {
+        use config::GlowAnimationType;
+        
+        let animation_type = match config.animation_type {
+            GlowAnimationType::Pulse => 0,
+            GlowAnimationType::Shimmer => 1,
+            GlowAnimationType::PulseAndShimmer => 2,
+        };
+        
         Self {
             radius: config.radius,
             threshold: config.threshold,
             strength: config.strength,
             color_boost: config.color_boost,
+            time_ms,
+            animation_enabled: if config.animation_enabled { 1 } else { 0 },
+            animation_type,
+            animation_speed: config.animation_speed,
         }
     }
 }
@@ -215,6 +231,7 @@ impl GlowRenderer {
         device: &wgpu::Device,
         main_color_view: &wgpu::TextureView,
         glow_config: &ExperimentalGlow,
+        time_ms: u32,
     ) -> anyhow::Result<()> {
         if !glow_config.enabled || glow_config.strength <= 0.0 || glow_config.radius <= 0.0 {
             return Ok(());
@@ -223,7 +240,7 @@ impl GlowRenderer {
 
         
         // Create uniform buffer
-        let glow_uniform = GlowUniform::from(glow_config);
+        let glow_uniform = GlowUniform::from_config_with_time(glow_config, time_ms);
         let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Glow Uniform Buffer"),
             contents: bytemuck::cast_slice(&[glow_uniform]),
