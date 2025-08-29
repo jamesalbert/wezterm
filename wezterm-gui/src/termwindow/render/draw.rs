@@ -142,6 +142,18 @@ impl crate::TermWindow {
             }
         }
 
+        // Apply glow effect if enabled
+        let config = self.config.clone();
+        if config.experimental_glow.enabled {
+            // Ensure glow renderer is initialized
+            webgpu.ensure_glow_renderer(&self.dimensions, &config.experimental_glow)?;
+            
+            // Apply glow post-processing
+            if let Some(ref glow_renderer) = webgpu.glow_renderer.borrow().as_ref() {
+                glow_renderer.render_glow(&mut encoder, &webgpu.device, &view, &config.experimental_glow)?;
+            }
+        }
+
         // submit will accept anything that implements IntoIter
         webgpu.queue.submit(std::iter::once(encoder.finish()));
         output.present();
